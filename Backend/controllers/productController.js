@@ -12,7 +12,8 @@ export const getProducts = async (req, res) => {
       availability,
       ratings,
       priceRange,
-      tags
+      page,
+      limit
     } = req.query;
 
     let query = {};
@@ -57,16 +58,24 @@ export const getProducts = async (req, res) => {
       });
     }
 
-    // 🏷 Tags
-    if (tags) {
-      query.tags = { $in: tags.split(",") };
-    }
+    // pagination
+    // ================= PAGINATION LOGIC =================
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Get data and total count in parallel for performance
+    const [products, totalProducts] = await Promise.all([
+      Product.find(query).skip(skip).limit(parseInt(limit)),
+      Product.countDocuments(query)
+    ]);
 
-    const products = await Product.find(query);
+
+    // const products = await Product.find(query);
 
     return res.status(200).json({
-      // success: true,
-      products
+      products,
+      totalPages: Math.ceil(totalProducts / limit), // limit = 10 so total pages = 30/10 than 3 pages
+      totalProducts, // 30 products
+      // currentPage: parseInt(page) //
     });
 
   } catch (error) {

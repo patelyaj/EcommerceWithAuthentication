@@ -1,47 +1,41 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchProducts, openForm } from "../../redux/Features/productSlice";
 import { Star, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-// import 
+
 function HomePage() {
   const dispatch = useDispatch();
 
   // Redux state
-  const { products, loading, error } = useSelector(
+  const { products, loading, error, totalPages } = useSelector(
     (state) => state.product
   );
 
   // URL params (filters/search)
   const [searchParams] = useSearchParams();
 
-  // Pagination
+  // Pagination (Frontend controls page)
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9;
+  const [limit, setLimit] = useState(10);
 
   // ================= FETCH PRODUCTS =================
   useEffect(() => {
-    // Convert URL params to object
     const params = Object.fromEntries([...searchParams]);
 
-    dispatch(fetchProducts(params));
+    dispatch(
+      fetchProducts({
+        params,
+        limit: limit,
+        page: currentPage,
+      })
+    );
+  }, [dispatch, searchParams, currentPage,limit]);
 
-    // Reset page on filter/search change
+  // Reset page when filters/ search change // also manual search 
+  useEffect(() => {
     setCurrentPage(1);
-
-  }, [dispatch, searchParams]);
-
-  // ================= PAGINATION =================
-  const { currentItems, totalPages } = useMemo(() => {
-    const lastIndex = currentPage * itemsPerPage;
-    const firstIndex = lastIndex - itemsPerPage;
-
-    return {
-      currentItems: products.slice(firstIndex, lastIndex),
-      totalPages: Math.ceil(products.length / itemsPerPage)
-    };
-
-  }, [products, currentPage]);
+  }, [searchParams]);
 
   // ================= PAGE CHANGE =================
   const handlePageChange = (page) => {
@@ -49,7 +43,7 @@ function HomePage() {
 
     window.scrollTo({
       top: 0,
-      behavior: "smooth"
+      behavior: "smooth",
     });
   };
 
@@ -89,18 +83,15 @@ function HomePage() {
   return (
     <div className="bg-gray-100 py-5">
       <div className="mx-auto px-4">
-
         {/* ================= PRODUCTS GRID ================= */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-
-          {currentItems.length === 0 && (
+          {products.length === 0 && (
             <p className="col-span-full text-center text-gray-500 py-20">
               No products found
             </p>
           )}
 
-          {currentItems.map((product) => {
-
+          {products.map((product) => {
             const originalPrice = (
               product.price /
               (1 - product.discountPercentage / 100)
@@ -111,10 +102,8 @@ function HomePage() {
                 key={product._id}
                 className="bg-white rounded shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
               >
-
                 {/* ================= IMAGE ================= */}
                 <div className="relative h-40 bg-gray-50 p-2">
-
                   <img
                     src={product.thumbnail}
                     alt={product.title}
@@ -137,12 +126,10 @@ function HomePage() {
                   <span className="absolute top-3 right-3 bg-gray-900 text-white text-xs font-bold px-2 py-1 rounded">
                     -{product.discountPercentage}%
                   </span>
-
                 </div>
 
                 {/* ================= CONTENT ================= */}
                 <div className="p-4 flex flex-col flex-grow">
-
                   {/* Brand / Category */}
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-indigo-600 uppercase">
@@ -165,7 +152,6 @@ function HomePage() {
                   {/* Rating */}
                   <div className="flex items-center gap-1 mb-3">
                     {renderStars(product.rating)}
-
                     <span className="text-xs text-gray-400">
                       ({product.rating})
                     </span>
@@ -178,7 +164,6 @@ function HomePage() {
 
                   {/* ================= PRICE + ACTION ================= */}
                   <div className="flex items-end justify-between mt-auto">
-
                     <div>
                       <span className="text-xs text-gray-400 line-through">
                         ${originalPrice}
@@ -189,20 +174,23 @@ function HomePage() {
                       </div>
                     </div>
 
-                    <div className="gap-5 flex flex-row ">
-                      <button onClick={()=>dispatch(openForm(product))} className="bg-gray-900 hover:bg-white hover:text-gray-900 border hover:border-gray-300 text-white text-sm px-3 py-2 rounded shadow active:scale-95 transition-all">
-                      <span className="flex items-center gap-2">
-                        Edit
-                      </span>
-                    </button>
-                    <button className="bg-gray-900 hover:bg-white hover:text-gray-900 border hover:border-gray-300 text-white text-sm px-3 py-2 rounded shadow active:scale-95 transition-all">
-                      <span className="flex items-center gap-2">
-                        ADD TO CART
-                        <ShoppingCart size={18} />
-                      </span>
-                    </button>
-                    </div>
+                    <div className="gap-5 flex flex-row">
+                      <button
+                        onClick={() => dispatch(openForm(product))}
+                        className="bg-gray-900 hover:bg-white hover:text-gray-900 border hover:border-gray-300 text-white text-sm px-3 py-2 rounded shadow active:scale-95 transition-all"
+                      >
+                        <span className="flex items-center gap-2">
+                          Edit
+                        </span>
+                      </button>
 
+                      <button className="bg-gray-900 hover:bg-white hover:text-gray-900 border hover:border-gray-300 text-white text-sm px-3 py-2 rounded shadow active:scale-95 transition-all">
+                        <span className="flex items-center gap-2">
+                          ADD TO CART
+                          <ShoppingCart size={18} />
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -212,8 +200,13 @@ function HomePage() {
 
         {/* ================= PAGINATION ================= */}
         {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-10 pb-5">
+        <div className="flex justify-between items-center mt-10 pb-5">
 
+          {/* Empty div for spacing (left side) */}
+          <div />
+
+          {/* ================= PAGINATION BUTTONS ================= */}
+          <div className="flex items-center gap-2">
             {/* Prev */}
             <button
               disabled={currentPage === 1}
@@ -223,7 +216,6 @@ function HomePage() {
               <ChevronLeft size={20} />
             </button>
 
-            {/* Pages */}
             {[...Array(totalPages)].map((_, i) => (
               <button
                 key={i + 1}
@@ -247,10 +239,27 @@ function HomePage() {
             >
               <ChevronRight size={20} />
             </button>
-
           </div>
-        )}
 
+          {/* ================= LIMIT DROPDOWN ================= */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">limit:</span>
+
+            <select
+              value={limit}
+              onChange={(e) => {const newLimit = Number(e.target.value);
+                setCurrentPage(1);
+                setLimit(newLimit);
+            }}
+              className="border rounded px-2 py-1 bg-white text-sm"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+            </select>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

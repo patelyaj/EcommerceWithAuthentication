@@ -5,7 +5,6 @@ import { useSearchParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { openForm } from '../redux/Features/productSlice';
 
-import { useNavigate } from 'react-router-dom';
 function FilterNavbar() {
     const [searchParams, setSearchParams] = useSearchParams();
     const filterOptions = useSelector((state) => state.product.filterOptions);
@@ -13,11 +12,9 @@ function FilterNavbar() {
     const [activeDropdown, setActiveDropdown] = useState(null);
     const dropdownRef = useRef(null);
 
-    const navigate = useNavigate();
     const filters = [
         { key: 'categories', label: 'Category' },
         { key: 'brands', label: 'Brand' },
-        // { key: 'tags', label: 'Tag' },
         { key: 'priceRange', label: 'Price' },
         { key: 'ratings', label: 'Rating' },
         { key: 'availability', label: 'Availability' },

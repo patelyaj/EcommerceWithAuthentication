@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { Search, ShoppingCart, X } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
-import { useDispatch,useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { logoutUser } from "../redux/Features/authSlice";
+
 function Navbar() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useDispatch();
-  const user = useSelector((state)=>state.auth);
+  const user = useSelector((state) => state.auth);
 
   const [searchInput, setSearchInput] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -16,6 +17,7 @@ function Navbar() {
   const [isTyping, setIsTyping] = useState(false);
 
   const searchRef = useRef(null);
+  const debounceTimeout = useRef(null); // Added ref to track timeout
 
   // Close suggestion box when clicking outside
   useEffect(() => {
@@ -24,28 +26,21 @@ function Navbar() {
         setShowSuggestions(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
-
-    return () =>
-      document.removeEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Sync input value with URL
   useEffect(() => {
     const query = searchParams.get("q") || "";
-
     setSearchInput(query);
     setIsTyping(false);
     setShowSuggestions(false);
   }, [searchParams]);
 
-  // debouncing here //
-  // Fetch search suggestions when user types
+  // Debounced Search using YOUR backend
   useEffect(() => {
-    if (!isTyping) return;
-
-    if (!searchInput.trim()) {
+    if (!isTyping || !searchInput.trim()) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -53,44 +48,46 @@ function Navbar() {
 
     const fetchSuggestions = async () => {
       try {
+        // Changed to use your actual backend API!
         const res = await axios.get(
-          `https://dummyjson.com/products/search?q=${searchInput}&limit=5`
+          `http://localhost:5000/products/getProducts?q=${searchInput}`,
+          { withCredentials: true }
         );
-
-        setSuggestions(res.data.products);
+        
+        // Limit to 5 suggestions on the frontend
+        setSuggestions(res.data.products.slice(0, 5));
         setShowSuggestions(true);
       } catch (err) {
         console.error("Suggestion Error:", err);
       }
     };
 
-    const timer = setTimeout(fetchSuggestions, 400);
+    debounceTimeout.current = setTimeout(fetchSuggestions, 400);
 
-    return () => clearTimeout(timer);
+    return () => clearTimeout(debounceTimeout.current);
   }, [searchInput, isTyping]);
-
-
-
 
   const handleSearchChange = (e) => {
     setSearchInput(e.target.value);
     setIsTyping(true);
-    setShowSuggestions(true);
   };
 
-//   Main Execution Point
+  // Main Execution Point
   const executeSearch = (query) => {
     setIsTyping(false);
     setShowSuggestions(false);
+    
+    // Kill any pending suggestion fetching immediately
+    if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current);
+    }
 
     const params = new URLSearchParams(searchParams);
-
     if (query.trim()) {
       params.set("q", query);
     } else {
       params.delete("q");
     }
-
     setSearchParams(params);
   };
 
@@ -105,56 +102,37 @@ function Navbar() {
     executeSearch("");
   };
 
-  const handleLogout = async ()=>{
-      const res = await dispatch(logoutUser());
-      console.log("logout response",res);
-  }
+  const handleLogout = async () => {
+    const res = await dispatch(logoutUser());
+    console.log("logout response", res);
+  };
 
   return (
     <div className="w-full bg-gray-900 flex justify-between items-center py-3 px-5 text-white">
-
-      {/* Logo */}
-      <div
-        className="text-xl font-bold cursor-pointer"
-        onClick={() => navigate("/")}
-      >
+      <div className="text-xl font-bold cursor-pointer" onClick={() => navigate("/dashboard")}>
         E-COMMERCE
       </div>
 
-      {/* Search Bar */}
-      <div
-        className="flex-grow max-w-xl relative"
-        ref={searchRef}
-      >
+      <div className="flex-grow max-w-xl relative" ref={searchRef}>
         <div className="flex items-center bg-white rounded">
-
           <Search size={20} className="text-gray-400 ml-3" />
-
           <input
             type="text"
             placeholder="SEARCH PRODUCTS..."
             className="border-none outline-none text-gray-900 ml-2 p-2 flex-grow"
             value={searchInput}
             onChange={handleSearchChange}
-
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 executeSearch(searchInput);
               }
             }}
           />
-
-          {/* Clear Button */}
           {searchInput && (
-            <button
-              onClick={clearSearch}
-              className="text-gray-400 hover:text-gray-600 mr-2"
-            >
+            <button onClick={clearSearch} className="text-gray-400 hover:text-gray-600 mr-2">
               <X size={18} />
             </button>
           )}
-
-          {/* Search Button */}
           <button
             onClick={() => executeSearch(searchInput)}
             className="bg-blue-500 hover:bg-blue-700 text-white px-5 py-3 rounded-r font-bold"
@@ -163,41 +141,30 @@ function Navbar() {
           </button>
         </div>
 
-        {/* Suggestions */}
         {showSuggestions && suggestions.length > 0 && (
           <div className="absolute top-full left-0 right-0 bg-white shadow-xl rounded-b mt-1 z-50 overflow-hidden">
-
             {suggestions.map((item) => (
               <div
-                key={item.id}
+                key={item._id || item.id}
                 className="px-4 py-3 hover:bg-gray-100 cursor-pointer text-gray-800"
-                onClick={() =>
-                  handleSuggestionClick(item.title)
-                }
+                onClick={() => handleSuggestionClick(item.title)}
               >
                 {item.title}
               </div>
             ))}
-
           </div>
         )}
       </div>
 
-      {/* Cart */}
-      <div className="flex flex-row gap-4">
-        <div>
-          <h1>{user.username}</h1>
-        </div>
-        <div>
-            <button onClick={handleLogout}>logout</button>
-        </div>
+      <div className="flex flex-row gap-4 items-center">
+        <div><h1>{user.username}</h1></div>
+        <div><button onClick={handleLogout} className="hover:text-gray-300">logout</button></div>
         <div>
           <button className="relative p-2 hover:bg-gray-800 rounded-full">
             <ShoppingCart size={24} />
           </button>
         </div>
       </div>
-
     </div>
   );
 }
