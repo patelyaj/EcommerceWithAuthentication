@@ -1,0 +1,53 @@
+.home-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #f8fafc;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.home-title {
+  font-size: 3.5rem;
+  color: #0f172a;
+  margin-bottom: 2rem;
+  font-weight: 800;
+}
+
+.home-actions {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.home-btn {
+  text-decoration: none;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.signup-btn {
+  background-color: #2563eb;
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+.signup-btn:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-2px);
+}
+
+.login-btn {
+  background-color: white;
+  color: #0f172a;
+  border: 2px solid #e2e8f0;
+}
+
+.login-btn:hover {
+  border-color: #cbd5e1;
+  background-color: #f1f5f9;
+  transform: translateY(-2px);
+}
