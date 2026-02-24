@@ -18,32 +18,37 @@ export const getProducts = async (req, res) => {
 
     let query = {};
 
-    // 🔍 Search
+    // Search
     if (q) {
-      query.title = { $regex: q, $options: "i" };
+      query.$or = [
+        { title: { $regex: q, $options: "i" } },
+        { description: { $regex: q, $options: "i" } },
+        { brand: { $regex: q, $options: "i" } },
+        { category: { $regex: q, $options: "i" } }
+      ];
     }
 
-    // 📦 Category
+    // Category
     if (categories) {
       query.category = { $in: categories.split(",") };
     }
 
-    // 🏷 Brand
+    // Brand
     if (brands) {
       query.brand = { $in: brands.split(",") };
     }
 
-    // 📊 Availability
+    // Availability
     if (availability) {
       query.availabilityStatus = { $in: availability.split(",") };
     }
 
-    // ⭐ Rating
+    // Rating
     if (ratings) {
       query.rating = { $gte: Math.min(...ratings.split(",").map(Number)) };
     }
 
-    // 💰 Price
+    // Price
     if (priceRange) {
       const ranges = priceRange.split(",");
 

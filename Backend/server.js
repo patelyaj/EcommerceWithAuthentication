@@ -5,6 +5,7 @@ import connectDb from './config/configDb.js';
 import authRoutes from './routes/authRoutes.js';
 import cookieParser from 'cookie-parser';
 import productRoutes from './routes/productRoutes.js';
+import helmet from 'helmet';
 
 configDotenv();
 connectDb();
@@ -17,11 +18,14 @@ app.use(cookieParser());
 //     origin : 'http://localhost:5173',
 //     credentials : true
 // }))
+// security
+app.use(helmet());
+
+// other site allowing
 app.use(cors({
     origin: 'http://localhost:5173',
     credentials: true
 }));
-// app.use(express.urlencoded(true));
 
 app.use('/users',authRoutes);
 app.use('/products',productRoutes);
