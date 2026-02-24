@@ -171,3 +171,25 @@ export const editProduct = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error while updating product" });
   }
 };
+
+export const getFilters = async (req, res) => {
+  try {
+    const [categories, brands, availability] = await Promise.all([
+      Product.distinct("category"),
+      Product.distinct("brand"),
+      Product.distinct("availabilityStatus")
+    ]);
+
+    res.status(200).json({
+      categories,
+      brands,
+      availability,
+      ratings: [1, 2, 3, 4, 5],
+      priceRange: ["0-100", "100-500", "500-1000", "1000+"]
+    });
+
+  } catch (error) {
+    console.error("getFilterOptions error:", error);
+    res.status(500).json({ message: "Failed to fetch filter options" });
+  }
+};

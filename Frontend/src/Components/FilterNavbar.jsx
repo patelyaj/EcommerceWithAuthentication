@@ -3,7 +3,7 @@ import { ChevronDown, X, RotateCcw } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { openForm } from '../redux/Features/productSlice';
+import { fetchFilterOptions, openForm } from '../redux/Features/productSlice';
 
 function FilterNavbar() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -11,6 +11,10 @@ function FilterNavbar() {
     const dispatch = useDispatch();
     const [activeDropdown, setActiveDropdown] = useState(null);
     const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        dispatch(fetchFilterOptions());
+    }, [dispatch]);
 
     const filters = [
         { key: 'categories', label: 'Category' },

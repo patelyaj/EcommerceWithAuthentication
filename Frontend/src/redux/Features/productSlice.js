@@ -1,159 +1,253 @@
-  import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-  import axios from "axios";
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import axios from "axios";
 
-  export const fetchProducts = createAsyncThunk(
-    "products/getProducts",
-    async ({params,limit=10,page=1}, { rejectWithValue }) => {
-      try {
-        const response = await axios.get(`http://localhost:5000/products/getProducts`, {
-          params : {
+/* =========================
+   FETCH FILTER OPTIONS
+========================= */
+export const fetchFilterOptions = createAsyncThunk(
+  "product/fetchFilterOptions",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await axios.get(
+        "http://localhost:5000/products/filters",
+        { withCredentials: true }
+      );
+      return res.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch filter options"
+      );
+    }
+  }
+);
+
+/* =========================
+   FETCH PRODUCTS
+========================= */
+export const fetchProducts = createAsyncThunk(
+  "products/getProducts",
+  async ({ params, limit = 10, page = 1 }, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(
+        "http://localhost:5000/products/getProducts",
+        {
+          params: {
             ...params,
             page,
-            limit
+            limit,
           },
-          withCredentials: true
-        });
-        return response.data;
-      } catch (error) {
-        return rejectWithValue(error.response?.data?.message || "Failed to fetch products");
-      }
-    }
-  );
-
-  export const addProduct = createAsyncThunk("products/addProduct", async (productData, { rejectWithValue }) => {
-    try { 
-      const response = await axios.post('http://localhost:5000/products/addProduct', productData, {
-        withCredentials: true 
-      });
+          withCredentials: true,
+        }
+      );
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.errors || error.response?.data?.error || "Failed to add product"
+        error.response?.data?.message || "Failed to fetch products"
       );
     }
-  });
+  }
+);
 
-  export const updateProduct = createAsyncThunk("products/updateProduct", async ({ id, productData }, { rejectWithValue }) => {
+/* =========================
+   ADD PRODUCT
+========================= */
+export const addProduct = createAsyncThunk(
+  "products/addProduct",
+  async (productData, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(`http://localhost:5000/products/editProduct/${id}`, productData, {
-        withCredentials: true 
-      });
+      const response = await axios.post(
+        "http://localhost:5000/products/addProduct",
+        productData,
+        { withCredentials: true }
+      );
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.errors || error.response?.data?.error || "Failed to update product"
+        error.response?.data?.errors ||
+          error.response?.data?.error ||
+          "Failed to add product"
       );
+    }
+  }
+);
+
+/* =========================
+   UPDATE PRODUCT
+========================= */
+export const updateProduct = createAsyncThunk(
+  "products/updateProduct",
+  async ({ id, productData }, { rejectWithValue }) => {
+    try {
+      const response = await axios.patch(
+        `http://localhost:5000/products/editProduct/${id}`,
+        productData,
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.errors ||
+          error.response?.data?.error ||
+          "Failed to update product"
+      );
+    }
+  }
+);
+
+/* =========================
+   HELPER FUNCTION
+========================= */
+const mergeFilterOptions = (state, products) => {
+  const categories = new Set(state.filterOptions.categories);
+  const brands = new Set(state.filterOptions.brands);
+  const tags = new Set(state.filterOptions.tags);
+
+  products.forEach((p) => {
+    if (p.category) categories.add(p.category);
+    if (p.brand) brands.add(p.brand);
+
+    if (Array.isArray(p.tags)) {
+      p.tags.forEach((tag) => tags.add(tag));
     }
   });
 
-  // --- HELPER FUNCTION TO MERGE FILTERS ---
-  // This prevents filters from vanishing when we restrict the product list
-  const mergeFilterOptions = (state, products) => {
-    state.filterOptions.categories = [
-      ...new Set([...state.filterOptions.categories, ...products.map(p => p.category)])
-    ].filter(Boolean);
+  state.filterOptions.categories = [...categories];
+  state.filterOptions.brands = [...brands];
+  state.filterOptions.tags = [...tags];
+};
 
-    state.filterOptions.brands = [
-      ...new Set([...state.filterOptions.brands, ...products.map(p => p.brand)])
-    ].filter(Boolean);
+/* =========================
+   SLICE
+========================= */
+const productSlice = createSlice({
+  name: "product",
+  initialState: {
+    products: [],
+    filterOptions: {
+      categories: [],
+      brands: [],
+      tags: [],
+      priceRange: ["0-50", "50-100", "100-500", "500-1000", "1000+"],
+      ratings: [5, 4, 3, 2, 1],
+      availability: ["In Stock", "Low Stock", "Out of Stock"],
+    },
 
-    state.filterOptions.tags = [
-      ...new Set([...state.filterOptions.tags, ...products.map(p => p.tags).flat()])
-    ].filter(Boolean);
-  };
+    loading: false,
+    error: null,
+    isFormOpen: false,
+    editData: null,
 
-  const productSlice = createSlice({
-      name: 'product',
-      initialState: {
-          products: [],
-          filterOptions: {
-              categories: [],
-              brands: [],
-              tags: [],
-              priceRange: ["0-50", "50-100", "100-500", "500-1000", "1000+"],
-              ratings: [5, 4, 3, 2, 1],
-              availability: ["In Stock", "Low Stock", "Out of Stock"],
-              
-          },
-          loading: null,
-          error: null,
-          isFormOpen: false,
-          editData: null,
+    totalPages: 1,
+    totalProducts: 0,
+  },
 
-          totalPages: 1, // Start with 1 so the UI has a default 30/10 = 30 pages
-          totalProducts: 0, // 30 products
-      },
-      reducers: {
-          openForm: (state, action) => {
-              state.isFormOpen = true;
-              state.editData = action.payload || null; 
-          },
-          closeForm: (state) => {
-              state.isFormOpen = false;
-              state.editData = null;
-          }
-      },
-      extraReducers: (builder) => {
-          builder
-              .addCase(fetchProducts.pending, (state) => {
-                  state.loading = true;
-                  state.error = null;
-              })
-              .addCase(fetchProducts.fulfilled, (state, action) => {
-                  state.loading = false;
-                  state.products = action.payload.products;
+  reducers: {
+    openForm: (state, action) => {
+      state.isFormOpen = true;
+      state.editData = action.payload || null;
+    },
+    closeForm: (state) => {
+      state.isFormOpen = false;
+      state.editData = null;
+    },
+  },
 
-                  state.totalPages = action.payload.totalPages;
-                  state.totalProducts = action.payload.totalProducts;
+  extraReducers: (builder) => {
+    builder
 
-                  mergeFilterOptions(state, action.payload.products);
-              })
-              .addCase(fetchProducts.rejected, (state, action) => {
-                  state.loading = false;
-                  state.error = action.payload;
-              })
-              // Add Product
-              .addCase(addProduct.pending, (state) => {
-                state.loading = true;
-              })
-              .addCase(addProduct.fulfilled, (state, action) => {
-                state.loading = false;
-                state.products.unshift(action.payload); // Add to UI list
-                
-                // NEW: Update filter dropdowns immediately without a refresh!
-                mergeFilterOptions(state, [action.payload]);
+      /* ===== FETCH FILTER OPTIONS ===== */
+      .addCase(fetchFilterOptions.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchFilterOptions.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
 
-                state.isFormOpen = false;
-                state.editData = null;
-              })
-              .addCase(addProduct.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.payload;
-              })
-              // Update Product
-              .addCase(updateProduct.pending, (state) => {
-                state.loading = true;
-              })
-              .addCase(updateProduct.fulfilled, (state, action) => {
-                state.loading = false;
-                const updatedProduct = action.payload;
-                const index = state.products.findIndex((p) => p._id === updatedProduct._id);
-                if (index !== -1) {
-                  state.products[index] = updatedProduct;
-                }
-                
-                // NEW: Update filter dropdowns dynamically if category/brand changed
-                mergeFilterOptions(state, [updatedProduct]);
+        const { categories = [], brands = [], tags = [] } =
+          action.payload || {};
 
-                state.isFormOpen = false;
-                state.editData = null;
-              })
-              .addCase(updateProduct.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.payload;
-              });
-      }
-  });
+        state.filterOptions.categories = categories;
+        state.filterOptions.brands = brands;
+        state.filterOptions.tags = tags;
+      })
+      .addCase(fetchFilterOptions.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
 
-  export const { openForm, closeForm } = productSlice.actions;
-  export default productSlice.reducer;
+      /* ===== FETCH PRODUCTS ===== */
+      .addCase(fetchProducts.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchProducts.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+
+        state.products = action.payload.products || [];
+        state.totalPages = action.payload.totalPages || 1;
+        state.totalProducts = action.payload.totalProducts || 0;
+
+        mergeFilterOptions(state, state.products);
+      })
+      .addCase(fetchProducts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      /* ===== ADD PRODUCT ===== */
+      .addCase(addProduct.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(addProduct.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+
+        if (state.products.length < 10) {
+          state.products.unshift(action.payload);
+        }
+
+        mergeFilterOptions(state, [action.payload]);
+
+        state.isFormOpen = false;
+        state.editData = null;
+      })
+      .addCase(addProduct.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      /* ===== UPDATE PRODUCT ===== */
+      .addCase(updateProduct.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateProduct.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+
+        const updatedProduct = action.payload;
+        const index = state.products.findIndex(
+          (p) => p._id === updatedProduct._id
+        );
+
+        if (index !== -1) {
+          state.products[index] = updatedProduct;
+        }
+
+        mergeFilterOptions(state, [updatedProduct]);
+
+        state.isFormOpen = false;
+        state.editData = null;
+      })
+      .addCase(updateProduct.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+  },
+});
+
+export const { openForm, closeForm } = productSlice.actions;
+export default productSlice.reducer;
